@@ -26,14 +26,19 @@ bot = commands.Bot(
     command_prefix=commands.when_mentioned_or("!"), intents=intents)
 
 
+@bot.event
+async def on_ready():
+    print("Started")
+
+
 @bot.command()
 async def play(ctx, link):
     print(link)
     music_for_men = await download_from_youtube(link)
     vc = await ctx.author.voice.channel.connect()
     vc.play(discord.FFmpegPCMAudio(
-        executable="/usr/bin/ffmpeg", source=music_for_men))
-    vc.source = discord.PCMVolumeTransformer(vc.source, volume=0.05)
+        executable="ffmpeg", source=music_for_men))
+    vc.source = discord.PCMVolumeTransformer(vc.source, volume=0.5)
 
 bot.run(
     'MTAzMzY3NjY3MzM0MzgyMzkwNA.Gh06Dm.IKcYJpyNw-9DwgwbLB-_UFQFJ7GCx-YB38WN8w')
