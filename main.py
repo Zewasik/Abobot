@@ -2,6 +2,7 @@ from pytube import YouTube
 from sqlite3 import connect
 from discord.ext import commands
 import discord
+import re
 
 KEY = '$play '
 
@@ -9,11 +10,9 @@ KEY = '$play '
 
 
 async def download_from_youtube(urlToDownload):
-    print('downloading...')
     yt = YouTube(urlToDownload)
     name = yt.streams.filter(
-        only_audio=True, mime_type="audio/webm").first().download()
-    # audio_file = open(name, "r+b").read()
+        only_audio=True, mime_type="audio/webm").first().url
 
     return name
 
@@ -32,8 +31,16 @@ class customCommand(commands.Cog):
 
     @commands.hybrid_command()
     async def play(self, ctx: commands.Context, youtube_link):
+        m = re.search(
+            "(?:https?:\/\/)?(?:www\.)?youtu\.?be(?:\.com)?\/?.*(?:watch|embed)?(?:.*v=|v\/|\/)([\w\-_]+)\&?", youtube_link)
+
+        if m == None:
+            await ctx.send("Брат, ссылку введи нормально")
+            return
+
+        youtube_link = m.group(0)
+
         music_path = await download_from_youtube(youtube_link)
-        # vc = await ctx.author.voice.channel.connect()
         print(ctx.voice_client)
 
         vc = [vc for vc in bot.voice_clients if vc == ctx.voice_client]
@@ -46,6 +53,8 @@ class customCommand(commands.Cog):
             executable="ffmpeg", source=music_path))
         vc.source = discord.PCMVolumeTransformer(vc.source, volume=1.0)
         await ctx.send("Пацаны, добавил в очередь эту песню кароче: " + youtube_link)
+
+        return
 
 
 @bot.event
