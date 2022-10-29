@@ -1,6 +1,5 @@
 import asyncio
-from pytube import YouTube, Search
-from sqlite3 import connect
+from pytube import YouTube, Search, Playlist
 from discord.ext import commands
 import discord
 import re
@@ -25,11 +24,22 @@ class MusicQueue:
         else:
             raise StopIteration
 
-    def add_music(self, query):
+    def add_music(self, query: str):
+        if query.find("playlist") != -1:
+            for url in get_url_from_playlist(query):
+                self.queue.append(url)
+            return
         m = re.search(
             "(?:https?:\/\/)?(?:www\.)?youtu\.?be(?:\.com)?\/?.*(?:watch|embed)?(?:.*v=|v\/|\/)([\w\-_]+)\&?", query)
 
         self.queue.append(m.group(0) if m else search_by_query(query))
+
+    def remove_queue(self):
+        self.queue = list()
+
+
+def get_url_from_playlist(query: str):
+    return Playlist(query).url_generator()
 
 
 def get_direct_url(urlToSearch: str):
@@ -65,6 +75,7 @@ class customCommand(commands.Cog):
 
     @commands.hybrid_command()
     async def play(self, ctx: commands.Context, link_or_query):
+        """Подключает бота к каналу и добавляет в очередь новую песню по запросу"""
         print(ctx.voice_client)
         vc = None
         if ctx.voice_client:
@@ -81,7 +92,7 @@ class customCommand(commands.Cog):
         else:
             self.queue[id] = MusicQueue(link_or_query)
 
-        await ctx.send(f'Пацаны, добавил в очередь эту песню кароче: {link_or_query}', ephemeral=True)
+        await ctx.send(f'Трек добавлен в очередь')
 
         print(self.queue)
         if not vc.is_playing():
@@ -94,23 +105,58 @@ class customCommand(commands.Cog):
                 while vc.is_playing():
                     await asyncio.sleep(1)
 
-            # await ctx.send(content="Очередь закончилась, я ухожу:(", reference=None)
-            # await vc.disconnect()
-
         return
 
     @commands.hybrid_command()
     async def skip(self, ctx: commands.Context):
+        """Пропускает текущий трек в очереди, если возможно"""
+
         if ctx.voice_client:
             if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
-                await ctx.send(f'Невозможно отключить бота, не находясь в канале: {ctx.author.voice.channel.name}')
+                await ctx.send(f'Невозможно пропустить трек не находясь в канале: {ctx.author.voice.channel.name}')
                 return
             if ctx.voice_client.is_playing():
                 ctx.voice_client.stop()
                 await ctx.send(f'Пропустил трек')
+
+            return
+
+        await ctx.send(f'Бот не подключен')
+
+    @commands.hybrid_command()
+    async def stop(self, ctx: commands.Context):
+        """Останавливает проигрывание и очищает очередь"""
+
+        if ctx.voice_client:
+            if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
+                await ctx.send(f'Невозможно остановить бота не находясь в канале: {ctx.author.voice.channel.name}')
+                return
+            if ctx.voice_client.is_playing():
+                id = ctx.author.guild.id
+                if id in self.queue:
+                    self.queue[id].remove_queue()
+                ctx.voice_client.stop()
+                await ctx.send(f'Очередь очищена')
+
+            return
+
+        await ctx.send(f'Бот не подключен')
+
+    @commands.hybrid_command()
+    async def disconnect(self, ctx: commands.Context):
+        """Отключает бота от канала"""
+
+        if ctx.voice_client:
+            if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
+                await ctx.send(f'Невозможно отключить бота не находясь в канале: {ctx.author.voice.channel.name}')
                 return
 
-            await ctx.send(f'Бот не подключен')
+            del self.queue[ctx.author.guild.id]
+            await ctx.voice_client.disconnect()
+            await ctx.send(f'Бот отключен')
+            return
+
+        await ctx.send(f'Бот не подключен')
 
 
 @bot.event
