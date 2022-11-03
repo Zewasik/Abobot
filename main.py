@@ -56,9 +56,16 @@ def get_direct_url(urlToSearch: str):
 
 
 def search_by_query(query: str) -> str:
-    s = Search(query)
+    RECONNECT_NUM = 5
 
-    return s.results[0].watch_url
+    for blank in range(RECONNECT_NUM):
+        try:
+            s = Search(query).results[0].watch_url
+            return s
+        except Exception as e:
+            print("Ошибка: невозможно достать ссылку: ", e)
+
+    return None
 
 
 intents = discord.Intents.default()
