@@ -2,3 +2,4 @@ Dockerfile
 .gitignore
 test
 requirements.txt
+discord_bot

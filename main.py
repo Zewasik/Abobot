@@ -25,12 +25,12 @@ class MusicQueue:
             raise StopIteration
 
     def add_music(self, query: str):
-        if query.find("playlist") != -1:
+        m = re.search(
+            "(?:https?:\/\/)?(?:www\.)?youtu\.?be(?:\.com)?\/?.*(?:watch|embed)?(?:.*v=|v\/|\/)([\w\-_]+)\&?", query)
+        if m and query.find("playlist") > 0:
             for url in get_url_from_playlist(query):
                 self.queue.append(url)
             return
-        m = re.search(
-            "(?:https?:\/\/)?(?:www\.)?youtu\.?be(?:\.com)?\/?.*(?:watch|embed)?(?:.*v=|v\/|\/)([\w\-_]+)\&?", query)
 
         self.queue.append(m.group(0) if m else search_by_query(query))
 
@@ -49,8 +49,9 @@ def get_direct_url(urlToSearch: str):
         try:
             stream = YouTube(urlToSearch).streams.get_by_itag(251)
             return {"url": stream.url, "title": stream.title}
-        except ConnectionResetError:
-            print("Попытка номер ", blank)
+        except Exception as e:
+            print(
+                f'Получение прямой ссылки, попытка номер: {blank}. Ошибка: {e}.')
 
     return None
 
@@ -63,7 +64,8 @@ def search_by_query(query: str) -> str:
             s = Search(query).results[0].watch_url
             return s
         except Exception as e:
-            print("Ошибка: невозможно достать ссылку: ", e)
+            print(
+                f'Получение ссылки из запроса, попытка номер: {blank}. Ошибка: {e}.')
 
     return None
 
