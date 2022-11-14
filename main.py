@@ -19,7 +19,7 @@ class MusicQueue:
 
     def __next__(self):
         if len(self.queue) > 0:
-            ans = get_direct_url(self.queue.pop(0))
+            ans = get_stream(self.queue.pop(0))
             return ans
         else:
             raise StopIteration
@@ -27,31 +27,46 @@ class MusicQueue:
     def add_music(self, query: str):
         m = re.search(
             "(?:https?:\/\/)?(?:www\.)?youtu\.?be(?:\.com)?\/?.*(?:watch|embed)?(?:.*v=|v\/|\/)([\w\-_]+)\&?", query)
-        if m and query.find("playlist") > 0:
+        if m and query.find("list") > 0:
             for url in get_url_from_playlist(query):
                 self.queue.append(url)
             return
 
-        self.queue.append(m.group(0) if m else search_by_query(query))
+        parsed_url = m.group(0) if m else search_by_query(query)
+
+        self.queue.append(parsed_url)
 
     def remove_queue(self):
         self.queue = list()
 
+    def last_track(self):
+        return self.queue[-1]
+
 
 def get_url_from_playlist(query: str):
-    return Playlist(query).url_generator()
-
-
-def get_direct_url(urlToSearch: str):
     RECONNECT_NUM = 5
 
-    for blank in range(RECONNECT_NUM):
+    for i in range(RECONNECT_NUM):
+        try:
+            playlist = Playlist(query).url_generator()
+            return playlist
+        except Exception as e:
+            print(
+                f'Разбитие плейлиста, попытка номер: {i}. Ошибка: {e}.')
+
+    return None
+
+
+def get_stream(urlToSearch: str):
+    RECONNECT_NUM = 5
+
+    for i in range(RECONNECT_NUM):
         try:
             stream = YouTube(urlToSearch).streams.get_by_itag(251)
             return {"url": stream.url, "title": stream.title}
         except Exception as e:
             print(
-                f'Получение прямой ссылки, попытка номер: {blank}. Ошибка: {e}.')
+                f'Получение прямой ссылки, попытка номер: {i}. Ошибка: {e}.')
 
     return None
 
@@ -59,13 +74,13 @@ def get_direct_url(urlToSearch: str):
 def search_by_query(query: str) -> str:
     RECONNECT_NUM = 5
 
-    for blank in range(RECONNECT_NUM):
+    for i in range(RECONNECT_NUM):
         try:
             s = Search(query).results[0].watch_url
             return s
         except Exception as e:
             print(
-                f'Получение ссылки из запроса, попытка номер: {blank}. Ошибка: {e}.')
+                f'Получение ссылки из запроса, попытка номер: {i}. Ошибка: {e}.')
 
     return None
 
@@ -85,8 +100,11 @@ class customCommand(commands.Cog):
     @commands.hybrid_command()
     async def play(self, ctx: commands.Context, link_or_query):
         """Подключает бота к каналу и добавляет в очередь новую песню по запросу"""
-        print(ctx.voice_client)
         vc = None
+
+        if not ctx.author.voice:
+            await ctx.send(f'Необходимо находиться на канале для использования бота')
+            return
         if ctx.voice_client:
             if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
                 await ctx.send(f'Бот уже занят:( Он находится в канале {ctx.author.voice.channel.name}')
@@ -101,9 +119,9 @@ class customCommand(commands.Cog):
         else:
             self.queue[id] = MusicQueue(link_or_query)
 
-        await ctx.send(f'Трек добавлен в очередь')
+        await ctx.send(f'Трек(и) добавлен(ы) в очередь, последний: {self.queue[id].last_track()}')
 
-        print(self.queue)
+        print(self.queue[id].queue)
         if not vc.is_playing():
             for current_music in self.queue[id]:
                 vc.play(discord.FFmpegPCMAudio(
@@ -147,6 +165,7 @@ class customCommand(commands.Cog):
                 ctx.voice_client.stop()
                 await ctx.send(f'Очередь очищена')
 
+            await ctx.send(f'Очередь уже пуста')
             return
 
         await ctx.send(f'Бот не подключен')
