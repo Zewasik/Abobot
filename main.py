@@ -3,6 +3,7 @@ from pytube import YouTube, Search, Playlist
 from discord.ext import commands
 import discord
 import re
+import random
 
 ffmpeg_options = {
     'options': '-bufsize 6000k',
@@ -40,11 +41,11 @@ class MusicQueue:
         self.queue = list()
 
     def last_track(self):
-        return self.queue[-1]
+        return self.queue[-1] if len(self.queue) else "Не удалось загрузить"
 
 
 def get_url_from_playlist(query: str):
-    RECONNECT_NUM = 5
+    RECONNECT_NUM = 50
 
     for i in range(RECONNECT_NUM):
         try:
@@ -58,7 +59,7 @@ def get_url_from_playlist(query: str):
 
 
 def get_stream(urlToSearch: str):
-    RECONNECT_NUM = 5
+    RECONNECT_NUM = 50
 
     for i in range(RECONNECT_NUM):
         try:
@@ -72,7 +73,7 @@ def get_stream(urlToSearch: str):
 
 
 def search_by_query(query: str) -> str:
-    RECONNECT_NUM = 5
+    RECONNECT_NUM = 50
 
     for i in range(RECONNECT_NUM):
         try:
@@ -182,6 +183,42 @@ class customCommand(commands.Cog):
             del self.queue[ctx.author.guild.id]
             await ctx.voice_client.disconnect()
             await ctx.send(f'Бот отключен')
+            return
+
+        await ctx.send(f'Бот не подключен')
+
+    @commands.hybrid_command()
+    async def shuffle(self, ctx: commands.Context):
+        """Перемешивает оставшуюся очередь"""
+
+        if ctx.voice_client:
+            if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
+                await ctx.send(f'Невозможно взаимодействовать с ботом не находясь в канале: {ctx.author.voice.channel.name}')
+                return
+            random.shuffle(self.queue[ctx.author.guild.id].queue)
+            await ctx.send(f'Очередь перемешана')
+            return
+
+        await ctx.send(f'Бот не подключен')
+
+    @commands.hybrid_command()
+    async def list(self, ctx: commands.Context):
+        """Отображает количество трэков в очереди"""
+
+        if ctx.voice_client:
+            if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
+                await ctx.send(f'Невозможно взаимодействовать с ботом не находясь в канале: {ctx.author.voice.channel.name}')
+                return
+            length = len(self.queue[ctx.author.guild.id].queue)
+            if length < 1:
+                await ctx.send(f'Очередь пуста')
+                return
+
+            # temp = ""
+            # for i, url in enumerate(self.queue[ctx.author.guild.id].queue):
+            #     temp += f'{i+1}. {url}\n'
+            await ctx.send(f'Количество трэков в очереди: {length}')
+
             return
 
         await ctx.send(f'Бот не подключен')
