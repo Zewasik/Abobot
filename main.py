@@ -1,5 +1,5 @@
+import yt_dlp
 import asyncio
-from pytube import YouTube, Search, Playlist
 from discord.ext import commands
 import discord
 import re
@@ -9,81 +9,128 @@ ffmpeg_options = {
     'options': '-bufsize 6000k',
 }
 
+DOWNLOAD = False
+
+
+class Video:
+    url = ""
+    title = ""
+    author = ""
+    direct_url = ""
+    duration = 0
+
+    def __init__(self, url, duration, title, author):
+        self.url = url
+        self.duration = duration
+        self.title = title
+        self.author = author
+
 
 class MusicQueue:
-    def __init__(self, music_to_add):
-        self.queue = list()
-        self.add_music(music_to_add)
+    def __init__(self):
+        self.queue: list[Video] = list()
 
     def __iter__(self):
         return self
 
     def __next__(self):
         if len(self.queue) > 0:
-            ans = get_stream(self.queue.pop(0))
+            ans = self.queue.pop(0)
+            ans.direct_url = get_stream(ans.url)
             return ans
         else:
             raise StopIteration
 
-    def add_music(self, query: str):
+    def add_music(self, query: str) -> dict:
         m = re.search(
             "(?:https?:\/\/)?(?:www\.)?youtu\.?be(?:\.com)?\/?.*(?:watch|embed)?(?:.*v=|v\/|\/)([\w\-_]+)\&?", query)
         if m and query.find("list") > 0:
-            for url in get_url_from_playlist(query):
-                self.queue.append(url)
-            return
+            videos = get_videos_from_playlist(query)
+            self.queue.extend(videos)
+            return {'ok': True, 'type': 'playlist', 'length': len(videos)}
 
-        parsed_url = m.group(0) if m else search_by_query(query)
+        video = get_single_video(query) if m else search_by_query(query)
 
-        self.queue.append(parsed_url)
+        self.queue.append(video)
+
+        return {'ok': True, 'type': 'video', 'length': 1}
 
     def remove_queue(self):
         self.queue = list()
 
-    def last_track(self):
-        return self.queue[-1] if len(self.queue) else "Не удалось загрузить"
+
+def get_videos_from_playlist(link: str):
+    result: list[Video] = []
+
+    with yt_dlp.YoutubeDL({'playlistend': 150}) as ydl:
+        playlist = ydl.extract_info(
+            link, DOWNLOAD, process=False)
+
+    if 'entries' not in playlist and '_type' in playlist and 'url' in playlist:
+        return get_videos_from_playlist(playlist['url'])
+    if 'entries' in playlist:
+        for video in playlist['entries']:
+            if 'url' in video and 'channel' in video and 'title' in video and 'duration' in video:
+                result.append(
+                    Video(video['url'], video['duration'], video['title'], video['channel']))
+                continue
+            print("не работает")
+
+        return result
+
+    raise NotImplementedError
 
 
-def get_url_from_playlist(query: str):
-    RECONNECT_NUM = 50
+def get_single_video(urlToSearch: str):
+    with yt_dlp.YoutubeDL({
+        'noplaylist': 'True'
+    }) as ydl:
+        video = ydl.extract_info(
+            urlToSearch, DOWNLOAD, process=False)
+    if 'webpage_url' in video and 'uploader' in video and 'title' in video and 'duration' in video:
+        return Video(video['webpage_url'], video['duration'], video['title'], video['uploader'])
 
-    for i in range(RECONNECT_NUM):
-        try:
-            playlist = Playlist(query).url_generator()
-            return playlist
-        except Exception as e:
-            print(
-                f'Разбитие плейлиста, попытка номер: {i}. Ошибка: {e}.')
-
-    return None
+    raise NotImplementedError
 
 
-def get_stream(urlToSearch: str):
-    RECONNECT_NUM = 50
+def get_stream(urlToSearch: str) -> str:
+    with yt_dlp.YoutubeDL({
+        'format': 'bestaudio/best',
+        'f': 251,
+        'noplaylist': 'True'
+    }) as ydl:
+        stream = ydl.extract_info(
+            urlToSearch, DOWNLOAD, process=True)
+    if 'url' in stream:
+        return stream['url']
 
-    for i in range(RECONNECT_NUM):
-        try:
-            stream = YouTube(urlToSearch).streams.get_by_itag(251)
-            return {"url": stream.url, "title": stream.title}
-        except Exception as e:
-            print(
-                f'Получение прямой ссылки, попытка номер: {i}. Ошибка: {e}.')
-
-    return None
+    raise NotImplementedError
 
 
-def search_by_query(query: str) -> str:
-    RECONNECT_NUM = 50
+def search_by_query(query: str):
+    YDL_OPTIONS = {'noplaylist': 'True'}
+    with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
+        video = ydl.extract_info(
+            f"ytsearch:{query}", DOWNLOAD, process=False)['entries'].__next__()
 
-    for i in range(RECONNECT_NUM):
-        try:
-            s = Search(query).results[0].watch_url
-            return s
-        except Exception as e:
-            print(
-                f'Получение ссылки из запроса, попытка номер: {i}. Ошибка: {e}.')
+    if 'url' in video and 'channel' in video and 'title' in video and 'duration' in video:
+        return Video(video['url'], video['duration'], video['title'], video['channel'])
 
-    return None
+    raise NotImplementedError
+
+
+def getTime(time: int):
+    return str(int(time)) if time > 10 else f'0{int(time)}'
+
+
+def getReadableTime(seconds: int) -> str:
+    seconds = seconds if seconds > 0 else 0
+    hours = seconds // 3600
+    seconds %= 3600
+    minutes = seconds // 60
+    seconds %= 60
+
+    return f'{getTime(hours)}:{getTime(minutes)}:{getTime(seconds)}' if hours > 0 else f'{getTime(minutes)}:{getTime(seconds)}'
 
 
 intents = discord.Intents.default()
@@ -96,7 +143,7 @@ bot = commands.Bot(
 class customCommand(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.queue = dict()
+        self.queue: dict[int, MusicQueue] = dict()
 
     @commands.hybrid_command()
     async def play(self, ctx: commands.Context, link_or_query):
@@ -115,19 +162,26 @@ class customCommand(commands.Cog):
             vc = await ctx.author.voice.channel.connect()
 
         id = ctx.author.guild.id
-        if id in self.queue:
-            self.queue[id].add_music(link_or_query)
+        if id not in self.queue:
+            self.queue[id] = MusicQueue()
+
+        await ctx.send(f'Попытка добавления трека...')
+
+        video = self.queue[id].add_music(link_or_query)
+        if video['ok'] == False or video['length'] < 1:
+            await ctx.channel.send(f"Не удалось добавить трек")
+        if video['type'] == "playlist":
+            await ctx.channel.send(f"Плейлист добавлен в очередь, количество добавленных треков: {video['length']}")
+        elif video['type'] == "video":
+            await ctx.channel.send(f'Трек добавлен в очередь')
         else:
-            self.queue[id] = MusicQueue(link_or_query)
+            await ctx.channel.send(f'Не удалось добавить трек')
 
-        await ctx.send(f'Трек(и) добавлен(ы) в очередь, последний: {self.queue[id].last_track()}')
-
-        print(self.queue[id].queue)
         if not vc.is_playing():
             for current_music in self.queue[id]:
                 vc.play(discord.FFmpegPCMAudio(
-                    executable="ffmpeg", source=current_music['url'], before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"), after=lambda e: print("Music played"))
-                await ctx.send(f'Сейчас проигрывается: {current_music["title"]}')
+                    executable="ffmpeg", source=current_music.direct_url, before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"), after=lambda e: print("Music played"))
+                await ctx.channel.send(f"Сейчас проигрывается: {current_music.title} от {current_music.author} [{getReadableTime(current_music.duration)}]")
                 # vc.source = discord.PCMVolumeTransformer(vc.source, volume=1.0)
 
                 while vc.is_playing():
@@ -214,9 +268,6 @@ class customCommand(commands.Cog):
                 await ctx.send(f'Очередь пуста')
                 return
 
-            # temp = ""
-            # for i, url in enumerate(self.queue[ctx.author.guild.id].queue):
-            #     temp += f'{i+1}. {url}\n'
             await ctx.send(f'Количество трэков в очереди: {length}')
 
             return
@@ -231,4 +282,4 @@ async def on_ready():
     print("Started")
 
 bot.run(
-    'MTAzMzY3NjY3MzM0MzgyMzkwNA.Gh06Dm.IKcYJpyNw-9DwgwbLB-_UFQFJ7GCx-YB38WN8w')
+    'MTA0MjM5MTI4NDMxNDI4MDAyNw.GhbIKt.JVAQcFQGAJTwJk2PyPN3wa9teFjhyBW0bUAp3E')

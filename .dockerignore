@@ -1,5 +1,5 @@
 Dockerfile
 .gitignore
 .git
-test
+test*
 discord_bot
