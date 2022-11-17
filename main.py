@@ -120,7 +120,7 @@ def search_by_query(query: str):
 
 
 def getTime(time: int):
-    return str(int(time)) if time > 10 else f'0{int(time)}'
+    return str(int(time)) if time > 9 else f'0{int(time)}'
 
 
 def getReadableTime(seconds: int) -> str:
@@ -155,7 +155,7 @@ class customCommand(commands.Cog):
             return
         if ctx.voice_client:
             if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
-                await ctx.send(f'Бот уже занят:( Он находится в канале {ctx.author.voice.channel.name}')
+                await ctx.send(f'Бот уже занят:( Он находится в канале **{ctx.author.voice.channel.name}**')
                 return
             vc = ctx.voice_client
         else:
@@ -181,7 +181,7 @@ class customCommand(commands.Cog):
             for current_music in self.queue[id]:
                 vc.play(discord.FFmpegPCMAudio(
                     executable="ffmpeg", source=current_music.direct_url, before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"), after=lambda e: print("Music played"))
-                await ctx.channel.send(f"Сейчас проигрывается: {current_music.title} от {current_music.author} [{getReadableTime(current_music.duration)}]")
+                await ctx.channel.send(f"Сейчас проигрывается: `{current_music.title}` от **{current_music.author}** [{getReadableTime(current_music.duration)}]")
                 # vc.source = discord.PCMVolumeTransformer(vc.source, volume=1.0)
 
                 while vc.is_playing():
