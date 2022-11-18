@@ -1,3 +1,4 @@
+import math
 import yt_dlp
 import asyncio
 from discord.ext import commands
@@ -5,9 +6,7 @@ import discord
 import re
 import random
 
-ffmpeg_options = {
-    'options': '-bufsize 6000k',
-}
+ffmpeg_options = "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -loglevel panic"
 
 DOWNLOAD = False
 
@@ -62,7 +61,7 @@ class MusicQueue:
 def get_videos_from_playlist(link: str):
     result: list[Video] = []
 
-    with yt_dlp.YoutubeDL({'playlistend': 150}) as ydl:
+    with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
         playlist = ydl.extract_info(
             link, DOWNLOAD, process=False)
 
@@ -70,10 +69,15 @@ def get_videos_from_playlist(link: str):
         return get_videos_from_playlist(playlist['url'])
     if 'entries' in playlist:
         for video in playlist['entries']:
+
             if 'url' in video and 'channel' in video and 'title' in video and 'duration' in video:
                 result.append(
                     Video(video['url'], video['duration'], video['title'], video['channel']))
+
+                if len(result) > 99:
+                    break
                 continue
+
             print("не работает")
 
         return result
@@ -83,7 +87,8 @@ def get_videos_from_playlist(link: str):
 
 def get_single_video(urlToSearch: str):
     with yt_dlp.YoutubeDL({
-        'noplaylist': 'True'
+        'noplaylist': 'True',
+        'quiet': True
     }) as ydl:
         video = ydl.extract_info(
             urlToSearch, DOWNLOAD, process=False)
@@ -97,7 +102,8 @@ def get_stream(urlToSearch: str) -> str:
     with yt_dlp.YoutubeDL({
         'format': 'bestaudio/best',
         'f': 251,
-        'noplaylist': 'True'
+        'noplaylist': 'True',
+        'quiet': True
     }) as ydl:
         stream = ydl.extract_info(
             urlToSearch, DOWNLOAD, process=True)
@@ -108,7 +114,10 @@ def get_stream(urlToSearch: str) -> str:
 
 
 def search_by_query(query: str):
-    YDL_OPTIONS = {'noplaylist': 'True'}
+    YDL_OPTIONS = {
+        'noplaylist': 'True',
+        'quiet': True
+    }
     with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
         video = ydl.extract_info(
             f"ytsearch:{query}", DOWNLOAD, process=False)['entries'].__next__()
@@ -177,102 +186,116 @@ class customCommand(commands.Cog):
         else:
             await ctx.channel.send(f'Не удалось добавить трек')
 
-        if not vc.is_playing():
-            for current_music in self.queue[id]:
-                vc.play(discord.FFmpegPCMAudio(
-                    executable="ffmpeg", source=current_music.direct_url, before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"), after=lambda e: print("Music played"))
-                await ctx.channel.send(f"Сейчас проигрывается: `{current_music.title}` от **{current_music.author}** [{getReadableTime(current_music.duration)}]")
-                # vc.source = discord.PCMVolumeTransformer(vc.source, volume=1.0)
+        if vc.is_playing():
+            return
 
-                while vc.is_playing():
-                    await asyncio.sleep(1)
+        for current_music in self.queue[id]:
+            vc.play(discord.FFmpegPCMAudio(
+                executable="ffmpeg", source=current_music.direct_url, before_options=ffmpeg_options))
+            await ctx.channel.send(f"Сейчас проигрывается: `{current_music.title}` от **{current_music.author}** [`{getReadableTime(current_music.duration)}`]")
+            # vc.source = discord.PCMVolumeTransformer(vc.source, volume=1.0)
 
-        return
+            while vc.is_playing():
+                await asyncio.sleep(1)
 
     @commands.hybrid_command()
     async def skip(self, ctx: commands.Context):
         """Пропускает текущий трек в очереди, если возможно"""
 
-        if ctx.voice_client:
-            if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
-                await ctx.send(f'Невозможно пропустить трек не находясь в канале: {ctx.author.voice.channel.name}')
-                return
-            if ctx.voice_client.is_playing():
-                ctx.voice_client.stop()
-                await ctx.send(f'Пропустил трек')
-
+        if not ctx.voice_client:
+            await ctx.send(f'Бот не подключен')
+            return
+        if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
+            await ctx.send(f'Невозможно пропустить трек не находясь в канале: {ctx.author.voice.channel.name}')
+            return
+        if ctx.voice_client.is_playing():
+            ctx.voice_client.stop()
+            await ctx.send(f'Пропустил трек')
             return
 
-        await ctx.send(f'Бот не подключен')
+        await ctx.send(f'Очередь уже пуста')
 
     @commands.hybrid_command()
     async def stop(self, ctx: commands.Context):
         """Останавливает проигрывание и очищает очередь"""
 
-        if ctx.voice_client:
-            if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
-                await ctx.send(f'Невозможно остановить бота не находясь в канале: {ctx.author.voice.channel.name}')
-                return
-            if ctx.voice_client.is_playing():
-                id = ctx.author.guild.id
-                if id in self.queue:
-                    self.queue[id].remove_queue()
-                ctx.voice_client.stop()
-                await ctx.send(f'Очередь очищена')
-
-            await ctx.send(f'Очередь уже пуста')
+        if not ctx.voice_client:
+            await ctx.send(f'Бот не подключен')
             return
 
-        await ctx.send(f'Бот не подключен')
+        if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
+            await ctx.send(f'Невозможно остановить бота не находясь в канале: {ctx.author.voice.channel.name}')
+            return
+        if ctx.voice_client.is_playing():
+            id = ctx.author.guild.id
+            if id in self.queue:
+                self.queue[id].remove_queue()
+            ctx.voice_client.stop()
+            await ctx.send(f'Очередь очищена')
+            return
+
+        await ctx.send(f'Очередь уже пуста')
 
     @commands.hybrid_command()
     async def disconnect(self, ctx: commands.Context):
         """Отключает бота от канала"""
 
-        if ctx.voice_client:
-            if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
-                await ctx.send(f'Невозможно отключить бота не находясь в канале: {ctx.author.voice.channel.name}')
-                return
-
-            del self.queue[ctx.author.guild.id]
-            await ctx.voice_client.disconnect()
-            await ctx.send(f'Бот отключен')
+        if not ctx.voice_client:
+            await ctx.send(f'Бот не подключен')
+            return
+        if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
+            await ctx.send(f'Невозможно отключить бота не находясь в канале: {ctx.author.voice.channel.name}')
             return
 
-        await ctx.send(f'Бот не подключен')
+        del self.queue[ctx.author.guild.id]
+        await ctx.voice_client.disconnect()
+        await ctx.send(f'Бот отключен')
 
     @commands.hybrid_command()
     async def shuffle(self, ctx: commands.Context):
         """Перемешивает оставшуюся очередь"""
 
-        if ctx.voice_client:
-            if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
-                await ctx.send(f'Невозможно взаимодействовать с ботом не находясь в канале: {ctx.author.voice.channel.name}')
-                return
-            random.shuffle(self.queue[ctx.author.guild.id].queue)
-            await ctx.send(f'Очередь перемешана')
+        if not ctx.voice_client:
+            await ctx.send(f'Бот не подключен')
             return
 
-        await ctx.send(f'Бот не подключен')
+        if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
+            await ctx.send(f'Невозможно взаимодействовать с ботом не находясь в канале: {ctx.author.voice.channel.name}')
+            return
+        random.shuffle(self.queue[ctx.author.guild.id].queue)
+        await ctx.send(f'Очередь перемешана')
 
     @commands.hybrid_command()
-    async def list(self, ctx: commands.Context):
-        """Отображает количество трэков в очереди"""
+    async def list(self, ctx: commands.Context, page=1):
+        """Отображает первые 20 трэков в очереди с n-страницы"""
 
-        if ctx.voice_client:
-            if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
-                await ctx.send(f'Невозможно взаимодействовать с ботом не находясь в канале: {ctx.author.voice.channel.name}')
-                return
-            length = len(self.queue[ctx.author.guild.id].queue)
-            if length < 1:
-                await ctx.send(f'Очередь пуста')
-                return
-
-            await ctx.send(f'Количество трэков в очереди: {length}')
-
+        if not ctx.voice_client:
+            await ctx.send(f'Бот не подключен')
+            return
+        if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
+            await ctx.send(f'Невозможно взаимодействовать с ботом не находясь в канале: {ctx.author.voice.channel.name}')
+            return
+        length = len(self.queue[ctx.author.guild.id].queue)
+        if length < 1:
+            await ctx.send(f'Очередь пуста')
             return
 
-        await ctx.send(f'Бот не подключен')
+        maxpage = math.ceil(length / 20)
+        if page > maxpage:
+            page = maxpage
+        elif page < 1:
+            page = 1
+
+        start = (page-1) * 20
+        end = page * 20
+        end = length if end > length else end
+
+        temp = ""
+        for i in range(start, end):
+            video = self.queue[ctx.author.guild.id].queue[i]
+            temp += f'`{i+1}`. **{video.title}** [`{getReadableTime(video.duration)}`]\n'
+
+        await ctx.send(f'Количество трэков в очереди: {length}\n\n{temp}\nСтраница: {page} / {maxpage}')
 
 
 @bot.event
