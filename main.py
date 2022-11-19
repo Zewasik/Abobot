@@ -1,10 +1,11 @@
 import math
 import yt_dlp
 import asyncio
-from discord.ext import commands
+from discord.ext import commands, tasks
 import discord
 import re
 import random
+import helpers
 
 ffmpeg_options = "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -loglevel panic"
 
@@ -157,14 +158,14 @@ class customCommand(commands.Cog):
     @commands.hybrid_command()
     async def play(self, ctx: commands.Context, link_or_query):
         """Подключает бота к каналу и добавляет в очередь новую песню по запросу"""
-        vc = None
+        # vc = None
 
-        if not ctx.author.voice:
+        if not helpers.author_is_connected(ctx):
             await ctx.send(f'Необходимо находиться на канале для использования бота')
             return
-        if ctx.voice_client:
-            if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
-                await ctx.send(f'Бот уже занят:( Он находится в канале **{ctx.author.voice.channel.name}**')
+        if helpers.bot_is_connected(ctx):
+            if helpers.is_same_channel(ctx):
+                await ctx.send(f'Бот уже занят:( Он находится в канале **{ctx.voice_client.channel.name}**')
                 return
             vc = ctx.voice_client
         else:
@@ -174,17 +175,17 @@ class customCommand(commands.Cog):
         if id not in self.queue:
             self.queue[id] = MusicQueue()
 
-        await ctx.send(f'Попытка добавления трека...')
+        msg = await ctx.send(f'Попытка добавления трека...')
 
         video = self.queue[id].add_music(link_or_query)
         if video['ok'] == False or video['length'] < 1:
-            await ctx.channel.send(f"Не удалось добавить трек")
+            await msg.edit(content=f"Не удалось добавить трек")
         if video['type'] == "playlist":
-            await ctx.channel.send(f"Плейлист добавлен в очередь, количество добавленных треков: {video['length']}")
+            await msg.edit(content=f"Плейлист добавлен в очередь, количество добавленных треков: {video['length']}")
         elif video['type'] == "video":
-            await ctx.channel.send(f'Трек добавлен в очередь')
+            await msg.edit(content=f'Трек добавлен в очередь')
         else:
-            await ctx.channel.send(f'Не удалось добавить трек')
+            await msg.edit(content=f"Не удалось добавить трек")
 
         if vc.is_playing():
             return
@@ -202,13 +203,13 @@ class customCommand(commands.Cog):
     async def skip(self, ctx: commands.Context):
         """Пропускает текущий трек в очереди, если возможно"""
 
-        if not ctx.voice_client:
+        if not helpers.bot_is_connected(ctx):
             await ctx.send(f'Бот не подключен')
             return
-        if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
-            await ctx.send(f'Невозможно пропустить трек не находясь в канале: {ctx.author.voice.channel.name}')
+        if not helpers.is_same_channel(ctx):
+            await ctx.send(f'Невозможно пропустить трек не находясь в канале: {ctx.voice_client.channel.name}')
             return
-        if ctx.voice_client.is_playing():
+        if helpers.bot_is_playing(ctx):
             ctx.voice_client.stop()
             await ctx.send(f'Пропустил трек')
             return
@@ -219,14 +220,13 @@ class customCommand(commands.Cog):
     async def stop(self, ctx: commands.Context):
         """Останавливает проигрывание и очищает очередь"""
 
-        if not ctx.voice_client:
+        if not helpers.bot_is_connected(ctx):
             await ctx.send(f'Бот не подключен')
             return
-
-        if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
+        if not helpers.is_same_channel(ctx):
             await ctx.send(f'Невозможно остановить бота не находясь в канале: {ctx.author.voice.channel.name}')
             return
-        if ctx.voice_client.is_playing():
+        if helpers.bot_is_playing(ctx):
             id = ctx.author.guild.id
             if id in self.queue:
                 self.queue[id].remove_queue()
@@ -240,14 +240,18 @@ class customCommand(commands.Cog):
     async def disconnect(self, ctx: commands.Context):
         """Отключает бота от канала"""
 
-        if not ctx.voice_client:
+        if not helpers.bot_is_connected(ctx):
             await ctx.send(f'Бот не подключен')
             return
-        if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
+        if not helpers.is_same_channel(ctx):
             await ctx.send(f'Невозможно отключить бота не находясь в канале: {ctx.author.voice.channel.name}')
             return
+        if helpers.bot_is_playing(ctx):
+            id = ctx.author.guild.id
+            if id in self.queue:
+                self.queue[id].remove_queue()
+            ctx.voice_client.stop()
 
-        del self.queue[ctx.author.guild.id]
         await ctx.voice_client.disconnect()
         await ctx.send(f'Бот отключен')
 
@@ -255,11 +259,11 @@ class customCommand(commands.Cog):
     async def shuffle(self, ctx: commands.Context):
         """Перемешивает оставшуюся очередь"""
 
-        if not ctx.voice_client:
+        if not helpers.bot_is_connected(ctx):
             await ctx.send(f'Бот не подключен')
             return
 
-        if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
+        if not helpers.is_same_channel(ctx):
             await ctx.send(f'Невозможно взаимодействовать с ботом не находясь в канале: {ctx.author.voice.channel.name}')
             return
         random.shuffle(self.queue[ctx.author.guild.id].queue)
@@ -269,10 +273,10 @@ class customCommand(commands.Cog):
     async def list(self, ctx: commands.Context, page=1):
         """Отображает первые 20 трэков в очереди с n-страницы"""
 
-        if not ctx.voice_client:
+        if not helpers.bot_is_connected(ctx):
             await ctx.send(f'Бот не подключен')
             return
-        if ctx.author.voice.channel.id != ctx.voice_client.channel.id:
+        if not helpers.is_same_channel(ctx):
             await ctx.send(f'Невозможно взаимодействовать с ботом не находясь в канале: {ctx.author.voice.channel.name}')
             return
         length = len(self.queue[ctx.author.guild.id].queue)
@@ -298,10 +302,20 @@ class customCommand(commands.Cog):
         await ctx.send(f'Количество трэков в очереди: {length}\n\n{temp}\nСтраница: {page} / {maxpage}')
 
 
+@tasks.loop(minutes=10)
+async def change_activity():
+    status = random.choice(["Boss of the gym", "Your mom:)", "Semen!"])
+
+    print(status)
+    await bot.change_presence(activity=discord.Game(name=status))
+
+
 @bot.event
 async def on_ready():
     await bot.add_cog(customCommand(bot))
     await bot.tree.sync()
+    await change_activity.start()
+
     print("Started")
 
 bot.run(
