@@ -2,3 +2,5 @@
 *.m4a
 test*
 discord_bot
+.env
+__pycache__

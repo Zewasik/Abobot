@@ -1,4 +1,5 @@
 import math
+import os
 import yt_dlp
 import asyncio
 from discord.ext import commands, tasks
@@ -6,8 +7,9 @@ import discord
 import re
 import random
 import helpers
+from dotenv import load_dotenv
 
-ffmpeg_options = "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -loglevel panic"
+ffmpeg_options = "-loglevel quiet -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
 
 DOWNLOAD = False
 
@@ -318,5 +320,8 @@ async def on_ready():
 
     print("Started")
 
-bot.run(
-    'MTA0MjM5MTI4NDMxNDI4MDAyNw.GhbIKt.JVAQcFQGAJTwJk2PyPN3wa9teFjhyBW0bUAp3E')
+load_dotenv()
+
+token = os.getenv('BOT_TOKEN')
+
+bot.run(token)

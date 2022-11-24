@@ -5,5 +5,5 @@ RUN pip3 install -r requirements.txt && \
     rm requirements.txt && \
     apt-get -y update && \
     apt-get install -y ffmpeg --no-install-recommends
-COPY main.py main.py
+COPY . .
 CMD [ "python3", "main.py"]

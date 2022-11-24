@@ -3,3 +3,4 @@ Dockerfile
 .git
 test*
 discord_bot
+__pycache__
