@@ -166,7 +166,7 @@ class customCommand(commands.Cog):
             await ctx.send(f'Необходимо находиться на канале для использования бота')
             return
         if helpers.bot_is_connected(ctx):
-            if helpers.is_same_channel(ctx):
+            if not helpers.is_same_channel(ctx):
                 await ctx.send(f'Бот уже занят:( Он находится в канале **{ctx.voice_client.channel.name}**')
                 return
             vc = ctx.voice_client
