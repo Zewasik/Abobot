@@ -15,15 +15,9 @@ DOWNLOAD = False
 
 
 class Video:
-    url = ""
-    title = ""
-    author = ""
-    direct_url = ""
-    duration = 0
-
     def __init__(self, url, duration, title, author):
         self.url = url
-        self.duration = duration
+        self.duration = duration if duration else 0
         self.title = title
         self.author = author
 
@@ -104,6 +98,7 @@ def get_single_video(urlToSearch: str):
 def get_stream(urlToSearch: str) -> str:
     with yt_dlp.YoutubeDL({
         'format': 'bestaudio/best',
+        'f': 91,
         'f': 251,
         'noplaylist': 'True',
         'quiet': True
@@ -160,7 +155,6 @@ class customCommand(commands.Cog):
     @commands.hybrid_command()
     async def play(self, ctx: commands.Context, link_or_query):
         """Подключает бота к каналу и добавляет в очередь новую песню по запросу"""
-        # vc = None
 
         if not helpers.author_is_connected(ctx):
             await ctx.send(f'Необходимо находиться на канале для использования бота')
