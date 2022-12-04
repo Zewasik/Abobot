@@ -13,5 +13,11 @@ def is_same_channel(ctx: commands.Context):
     return author_is_connected(ctx) and ctx.voice_client.channel == ctx.author.voice.channel
 
 
-def bot_is_playing(ctx: commands.Context):
+def bot_is_playing(ctx: commands.Context) -> bool:
     return bot_is_connected(ctx) and ctx.voice_client.is_playing()
+
+
+def queue_is_empty(ctx: commands.Context, queue):
+    id = ctx.author.guild.id
+
+    return id not in queue or queue[id].is_empty()
