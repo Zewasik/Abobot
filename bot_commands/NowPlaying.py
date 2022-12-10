@@ -1,6 +1,8 @@
+import time
 from discord.ext import commands
 from bot_commands.bot_wrapper import BotWrapper
 import bot_commands.helpers as helpers
+
 
 class NowPlayingCommand(commands.Cog):
     def __init__(self, bot: BotWrapper):
@@ -18,10 +20,9 @@ class NowPlayingCommand(commands.Cog):
             return
         video = self.bot.queue[ctx.author.guild.id].now_playing
         if video:
-            await ctx.send(f'Сейчас проигрывается: {video.url}')
+            # temp = f'`|{"-"*timeParts}>{"_"*(20-timeParts)}|`'
+            temp = f'`{video.getReadableTime(int(time.time() - video.start_time))}`/`{video.getReadableTime()}`'
+            await ctx.send(f'Сейчас проигрывается: {video.url}. Оставшееся время: {temp}')
             return
 
         await ctx.send(f'Сейчас ничего не проигрывается')
-
-
-    

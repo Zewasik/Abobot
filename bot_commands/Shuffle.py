@@ -3,6 +3,7 @@ from discord.ext import commands
 from bot_commands.bot_wrapper import BotWrapper
 import bot_commands.helpers as helpers
 
+
 class ShuffleCommand(commands.Cog):
     def __init__(self, bot: BotWrapper):
         self.bot = bot
@@ -23,6 +24,3 @@ class ShuffleCommand(commands.Cog):
             return
 
         await ctx.send(f'Очередь пуста')
-
-
-    

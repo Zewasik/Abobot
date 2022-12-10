@@ -16,9 +16,8 @@ class DisconnectCommand(commands.Cog):
         if not helpers.is_same_channel(ctx):
             await ctx.send(f'Невозможно отключить бота не находясь в канале: {ctx.author.voice.channel.name}')
             return
-        if not helpers.queue_is_empty(ctx, self.bot.queue):
-            self.bot.queue[ctx.author.guild.id].remove_queue()
         if helpers.bot_is_playing(ctx):
+            self.bot.queue[ctx.author.guild.id].remove_queue()
             ctx.voice_client.stop()
 
         await ctx.voice_client.disconnect()

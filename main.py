@@ -21,7 +21,7 @@ def main():
     @tasks.loop(minutes=10)
     async def change_activity():
         status = random.choice(
-            ["кушает картошку", "завис(шутка)", "наелся и спит"])
+            ["кушает картошку", "завис(шутка)", "наелся и спит", "Dota 2"])
 
         print(status)
         await bot.change_presence(activity=discord.Game(name=status))

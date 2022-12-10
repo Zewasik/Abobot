@@ -1,8 +1,10 @@
+import time
 import yt_dlp
 import re
 
 
 DOWNLOAD = False
+PLAYLIST_LIMIT = 200
 
 
 def getTime(time: int):
@@ -15,9 +17,10 @@ class Video:
         self.duration = duration if duration else 0
         self.title = title
         self.author = author
+        self.start_time = 0.0
 
-    def getReadableTime(self) -> str:
-        seconds = self.duration
+    def getReadableTime(self, sec=0) -> str:
+        seconds = self.duration if sec <= 0 else sec
         seconds = seconds if seconds > 0 else 0
         hours = seconds // 3600
         seconds %= 3600
@@ -38,6 +41,7 @@ class MusicQueue:
     def __next__(self):
         if len(self.queue) > 0:
             ans = self.queue.pop(0)
+            ans.start_time = time.time()
             self.now_playing = ans
             ans.direct_url = get_stream(ans.url)
             return ans
@@ -73,7 +77,7 @@ class MusicQueue:
 def get_videos_from_playlist(link: str):
     result: list[Video] = []
 
-    with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
+    with yt_dlp.YoutubeDL({'quiet': True, 'ignoreerrors': True}) as ydl:
         playlist = ydl.extract_info(
             link, DOWNLOAD, process=False)
 
@@ -81,12 +85,11 @@ def get_videos_from_playlist(link: str):
         return get_videos_from_playlist(playlist['url'])
     if 'entries' in playlist:
         for video in playlist['entries']:
-
             if 'url' in video and 'channel' in video and 'title' in video and 'duration' in video:
                 result.append(
                     Video(video['url'], video['duration'], video['title'], video['channel']))
 
-                if len(result) > 199:
+                if len(result) >= PLAYLIST_LIMIT:
                     break
                 continue
 

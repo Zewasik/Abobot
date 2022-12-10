@@ -16,10 +16,10 @@ class ResumeCommand(commands.Cog):
         if not helpers.is_same_channel(ctx):
             await ctx.send(f'Невозможно пропустить трек не находясь в канале: {ctx.voice_client.channel.name}')
             return
-        if not helpers.queue_is_empty(ctx, self.bot.queue):
+        if helpers.bot_is_playing(ctx):
             ctx.voice_client.resume()
             await ctx.send(f'Возобновил воспроизведение')
             return
 
-        await ctx.send(f'Очередь пуста')
+        await ctx.send(f'В данный момент ничего не проигрывается')
     

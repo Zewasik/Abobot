@@ -14,7 +14,7 @@ def is_same_channel(ctx: commands.Context):
 
 
 def bot_is_playing(ctx: commands.Context) -> bool:
-    return bot_is_connected(ctx) and ctx.voice_client.is_playing()
+    return bot_is_connected(ctx) and (ctx.voice_client.is_playing() or ctx.voice_client.is_paused())
 
 
 def queue_is_empty(ctx: commands.Context, queue):

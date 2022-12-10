@@ -16,7 +16,7 @@ class StopCommand(commands.Cog):
         if not helpers.is_same_channel(ctx):
             await ctx.send(f'Невозможно остановить бота не находясь в канале: {ctx.author.voice.channel.name}')
             return
-        if not helpers.queue_is_empty(ctx, self.bot.queue):
+        if helpers.bot_is_playing(ctx):
             id = ctx.author.guild.id
             if id in self.bot.queue:
                 self.bot.queue[id].remove_queue()
@@ -24,6 +24,4 @@ class StopCommand(commands.Cog):
             await ctx.send(f'Очередь очищена')
             return
 
-        await ctx.send(f'Очередь уже пуста')
-
-    
+        await ctx.send(f'В данный момент ничего не проигрывается')

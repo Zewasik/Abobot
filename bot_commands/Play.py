@@ -1,4 +1,5 @@
 import asyncio
+import random
 import discord
 from discord.ext import commands
 from bot_commands.bot_wrapper import BotWrapper
@@ -16,7 +17,7 @@ class PlayCommand(commands.Cog):
         self.bot = bot
 
     @commands.hybrid_command()
-    async def play(self, ctx: commands.Context, link_or_query):
+    async def play(self, ctx: commands.Context, link_or_query: str):
         """Подключает бота к каналу и добавляет в очередь новую песню по запросу"""
 
         if not helpers.author_is_connected(ctx):
@@ -50,10 +51,23 @@ class PlayCommand(commands.Cog):
             return
 
         for current_music in self.bot.queue[id]:
-            vc.play(discord.FFmpegPCMAudio(
-                source=current_music.direct_url, before_options=ffmpeg_options['before_options'], options=ffmpeg_options['options']))
-            await ctx.channel.send(f"Сейчас проигрывается: `{current_music.title}` от **{current_music.author}** [`{current_music.getReadableTime()}`]")
-            # vc.source = discord.PCMVolumeTransformer(vc.source, volume=1.0)
+            try:
+                vc.play(discord.FFmpegPCMAudio(
+                    source=current_music.direct_url, before_options=ffmpeg_options['before_options'], options=ffmpeg_options['options']))
+
+                await ctx.channel.send(f"Сейчас проигрывается: `{current_music.title}` от **{current_music.author}** [`{current_music.getReadableTime()}`]")
+                # vc.source = discord.PCMVolumeTransformer(vc.source, volume=1.0)
+            except Exception as e:
+                print(f"Error: {e}")
 
             while vc.is_playing() or vc.is_paused():
                 await asyncio.sleep(1)
+
+    @commands.hybrid_command()
+    async def gachi(self, ctx: commands.Context):
+        """Подключает бота к каналу и добавляет в очередь просто шедевры"""
+        gachi_url = 'https://www.youtube.com/playlist?list=PLPte1Gs5n0KtXhk3piLJcYK23WJgG4sea'
+        await self.play(ctx, gachi_url)
+
+        if self.bot.queue[ctx.author.guild.id]:
+            random.shuffle(self.bot.queue[ctx.author.guild.id].queue)
