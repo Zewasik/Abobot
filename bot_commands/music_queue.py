@@ -43,7 +43,12 @@ class MusicQueue:
             ans = self.queue.pop(0)
             ans.start_time = time.time()
             self.now_playing = ans
-            ans.direct_url = get_stream(ans.url)
+            try:
+                ans.direct_url = get_stream(ans.url)
+            except Exception as e:
+                print(e)
+                return None
+                
             return ans
         else:
             self.now_playing = None

@@ -51,6 +51,9 @@ class PlayCommand(commands.Cog):
             return
 
         for current_music in self.bot.queue[id]:
+            if not current_music or not current_music.direct_url:
+                continue
+
             try:
                 vc.play(discord.FFmpegPCMAudio(
                     source=current_music.direct_url, before_options=ffmpeg_options['before_options'], options=ffmpeg_options['options']))

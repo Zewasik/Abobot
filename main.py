@@ -18,6 +18,10 @@ def main():
     load_dotenv()
     TOKEN = os.getenv('BOT_TOKEN')
 
+    if not TOKEN:
+        print("Отсутствует .env файл с токеном")
+        exit(1)
+
     @tasks.loop(minutes=10)
     async def change_activity():
         status = random.choice(
