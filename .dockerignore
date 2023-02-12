@@ -1,4 +1,8 @@
+venv
+.dockerignore
 Dockerfile
+.env
+.env_example
 .gitignore
 .git
 test*

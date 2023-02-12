@@ -1,14 +1,10 @@
+from datetime import timedelta
+from typing import List
 import time
 import yt_dlp
 import re
 
-
-DOWNLOAD = False
-PLAYLIST_LIMIT = 200
-
-
-def getTime(time: int):
-    return str(int(time)) if time > 9 else f'0{int(time)}'
+import config
 
 
 class Video:
@@ -19,15 +15,9 @@ class Video:
         self.author = author
         self.start_time = 0.0
 
-    def getReadableTime(self, sec=0) -> str:
+    def get_readable_time(self, sec=0) -> str:
         seconds = self.duration if sec <= 0 else sec
-        seconds = seconds if seconds > 0 else 0
-        hours = seconds // 3600
-        seconds %= 3600
-        minutes = seconds // 60
-        seconds %= 60
-
-        return f'{getTime(hours)}:{getTime(minutes)}:{getTime(seconds)}' if hours > 0 else f'{getTime(minutes)}:{getTime(seconds)}'
+        return str(timedelta(seconds=seconds))
 
 
 class MusicQueue:
@@ -48,7 +38,7 @@ class MusicQueue:
             except Exception as e:
                 print(e)
                 return None
-                
+
             return ans
         else:
             self.now_playing = None
@@ -56,7 +46,8 @@ class MusicQueue:
 
     def add_music(self, query: str) -> dict:
         m = re.search(
-            "(http(s?)://(www\.)?)?youtu(be\.com)/(((watch\?v=[\w-]+)|(playlist\?))(?P<playlist>&?list=[\w-]+)?)?", query)
+            r"(http(s?)://(www\.)?)?youtu(be\.com)/(((watch\?v=[\w-]+)|(playlist\?))(?P<playlist>&?list=[\w-]+)?)?",
+            query)
         if m and m.group("playlist"):
             videos = get_videos_from_playlist(m.group(0))
             self.queue.extend(videos)
@@ -79,12 +70,12 @@ class MusicQueue:
         return self.length() < 1
 
 
-def get_videos_from_playlist(link: str):
+def get_videos_from_playlist(link: str) -> List[Video]:
     result: list[Video] = []
 
     with yt_dlp.YoutubeDL({'quiet': True, 'ignoreerrors': True}) as ydl:
         playlist = ydl.extract_info(
-            link, DOWNLOAD, process=False)
+            link, config.CONFIG.download, process=False)
 
     if 'entries' not in playlist and '_type' in playlist and 'url' in playlist:
         return get_videos_from_playlist(playlist['url'])
@@ -94,7 +85,7 @@ def get_videos_from_playlist(link: str):
                 result.append(
                     Video(video['url'], video['duration'], video['title'], video['channel']))
 
-                if len(result) >= PLAYLIST_LIMIT:
+                if len(result) >= config.CONFIG.playlist_limit:
                     break
                 continue
 
@@ -105,20 +96,20 @@ def get_videos_from_playlist(link: str):
     raise NotImplementedError
 
 
-def get_single_video(urlToSearch: str):
+def get_single_video(url_to_search: str) -> Video:
     with yt_dlp.YoutubeDL({
         'noplaylist': 'True',
         'quiet': True
     }) as ydl:
         video = ydl.extract_info(
-            urlToSearch, DOWNLOAD, process=False)
+            url_to_search, config.CONFIG.download, process=False)
     if 'webpage_url' in video and 'uploader' in video and 'title' in video and 'duration' in video:
         return Video(video['webpage_url'], video['duration'], video['title'], video['uploader'])
 
     raise NotImplementedError
 
 
-def get_stream(urlToSearch: str) -> str:
+def get_stream(url_to_search: str) -> str:
     with yt_dlp.YoutubeDL({
         'format': 'bestaudio/best',
         'f': 251,
@@ -127,21 +118,21 @@ def get_stream(urlToSearch: str) -> str:
         'quiet': True
     }) as ydl:
         stream = ydl.extract_info(
-            urlToSearch, DOWNLOAD, process=True)
+            url_to_search, config.CONFIG.download, process=True)
     if 'url' in stream:
         return stream['url']
 
     raise NotImplementedError
 
 
-def search_by_query(query: str):
+def search_by_query(query: str) -> Video:
     YDL_OPTIONS = {
         'noplaylist': 'True',
         'quiet': True
     }
     with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
         video = ydl.extract_info(
-            f"ytsearch:{query}", DOWNLOAD, process=False)['entries'].__next__()
+            f"ytsearch:{query}", config.CONFIG.download, process=False)['entries'].__next__()
 
     if 'url' in video and 'channel' in video and 'title' in video and 'duration' in video:
         return Video(video['url'], video['duration'], video['title'], video['channel'])

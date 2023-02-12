@@ -1,4 +1,4 @@
 discord.py==2.1.0
 discord.py[voice]==2.1.0
 yt_dlp==2022.11.11
-python-dotenv==0.21.0
+dacite==1.8.0

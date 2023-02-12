@@ -2,6 +2,7 @@ from discord.ext import commands
 from bot_commands.bot_wrapper import BotWrapper
 import bot_commands.helpers as helpers
 
+
 class StopCommand(commands.Cog):
     def __init__(self, bot: BotWrapper):
         self.bot = bot
@@ -23,5 +24,4 @@ class StopCommand(commands.Cog):
             ctx.voice_client.stop()
             await ctx.send(f'Очередь очищена')
             return
-
         await ctx.send(f'В данный момент ничего не проигрывается')
