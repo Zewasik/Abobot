@@ -6,10 +6,7 @@ from bot_commands.bot_wrapper import BotWrapper
 import bot_commands.helpers as helpers
 from bot_commands.music_queue import MusicQueue
 
-ffmpeg_options = {
-    'before_options': "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-    'options': "-v panic"
-}
+import config
 
 
 class PlayCommand(commands.Cog):
@@ -53,12 +50,16 @@ class PlayCommand(commands.Cog):
         for current_music in self.bot.queue[id]:
             if not current_music or not current_music.direct_url:
                 continue
-
             try:
                 vc.play(discord.FFmpegPCMAudio(
-                    source=current_music.direct_url, before_options=ffmpeg_options['before_options'], options=ffmpeg_options['options']))
+                    source=current_music.direct_url,
+                    before_options=config.CONFIG.ffmpeg_options.before_options,
+                    options=config.CONFIG.ffmpeg_options.options)
+                )
 
-                await ctx.channel.send(f"Сейчас проигрывается: `{current_music.title}` от **{current_music.author}** [`{current_music.getReadableTime()}`]")
+                await ctx.channel.send(
+                    f"Сейчас проигрывается: `{current_music.title}`"
+                    f" от **{current_music.author}** [`{current_music.get_readable_time()}`]")
                 # vc.source = discord.PCMVolumeTransformer(vc.source, volume=1.0)
             except Exception as e:
                 print(f"Error: {e}")

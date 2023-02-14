@@ -1,3 +1,5 @@
+.idea
+venv
 *.webm
 *.m4a
 test*

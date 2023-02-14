@@ -2,6 +2,7 @@ from discord.ext import commands
 from bot_commands.bot_wrapper import BotWrapper
 import bot_commands.helpers as helpers
 
+
 class ResumeCommand(commands.Cog):
     def __init__(self, bot: BotWrapper):
         self.bot = bot

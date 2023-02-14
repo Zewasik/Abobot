@@ -21,7 +21,7 @@ class NowPlayingCommand(commands.Cog):
         video = self.bot.queue[ctx.author.guild.id].now_playing
         if video:
             # temp = f'`|{"-"*timeParts}>{"_"*(20-timeParts)}|`'
-            temp = f'`{video.getReadableTime(int(time.time() - video.start_time))}`/`{video.getReadableTime()}`'
+            temp = f'`{video.get_readable_time(int(time.time() - video.start_time))}`/`{video.get_readable_time()}`'
             await ctx.send(f'Сейчас проигрывается: {video.url}. Оставшееся время: {temp}')
             return
 

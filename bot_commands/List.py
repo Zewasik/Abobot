@@ -3,6 +3,8 @@ from bot_commands.bot_wrapper import BotWrapper
 import bot_commands.helpers as helpers
 import math
 
+import config
+
 
 class ListCommand(commands.Cog):
     def __init__(self, bot: BotWrapper):
@@ -10,7 +12,7 @@ class ListCommand(commands.Cog):
 
     @commands.hybrid_command()
     async def list(self, ctx: commands.Context, page=1):
-        """Отображает первые 20 треков в очереди с n-страницы"""
+        """Отображает заданное в config.pagintion_size число треков в очереди с n-страницы"""
 
         if not helpers.bot_is_connected(ctx):
             await ctx.send(f'Бот не подключен')
@@ -24,19 +26,20 @@ class ListCommand(commands.Cog):
 
         length = self.bot.queue[ctx.author.guild.id].length()
 
-        maxpage = math.ceil(length / 20)
-        if page > maxpage:
-            page = maxpage
+        pagination_size = config.CONFIG.pagination_size
+        last_page = math.ceil(length / pagination_size)
+        if page > last_page:
+            page = last_page
         elif page < 1:
             page = 1
 
-        start = (page-1) * 20
-        end = page * 20
+        start = (page-1) * pagination_size
+        end = page * pagination_size
         end = length if end > length else end
 
         temp = ""
         for i in range(start, end):
             video = self.bot.queue[ctx.author.guild.id].queue[i]
-            temp += f'`{i+1}`. **{video.title}** [`{video.getReadableTime()}`]\n'
+            temp += f'`{i+1}`. **{video.title}** [`{video.get_readable_time()}`]\n'
 
-        await ctx.send(f'Количество треков в очереди: {length}\n\n{temp}\nСтраница: {page} / {maxpage}')
+        await ctx.send(f'Количество треков в очереди: {length}\n\n{temp}\nСтраница: {page} / {last_page}')
