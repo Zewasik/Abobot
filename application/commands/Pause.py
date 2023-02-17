@@ -1,23 +1,27 @@
 from discord.ext import commands
-from bot_commands.bot_wrapper import BotWrapper
-import bot_commands.helpers as helpers
+
+from application.bot import Bot
+from application.commands import AppCommand
+from application.context import AppContext
 
 
-class PauseCommand(commands.Cog):
-    def __init__(self, bot: BotWrapper):
+class PauseCommand(AppCommand):
+    def __init__(self, bot: Bot):
         self.bot = bot
 
     @commands.hybrid_command()
-    async def pause(self, ctx: commands.Context):
-        """Ставит трек на паузу"""
+    async def pause(self, ctx: AppContext):
+        """
+        Pauses current song
+        """
 
-        if not helpers.bot_is_connected(ctx):
+        if not ctx.is_client_connected():
             await ctx.send(f'Бот не подключен')
             return
-        if not helpers.is_same_channel(ctx):
+        if not ctx.is_same_channel():
             await ctx.send(f'Невозможно пропустить трек не находясь в канале: {ctx.voice_client.channel.name}')
             return
-        if helpers.bot_is_playing(ctx):
+        if ctx.is_client_playing():
             ctx.voice_client.pause()
             await ctx.send(f'Поставил на паузу')
             return

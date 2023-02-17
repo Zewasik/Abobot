@@ -1,23 +1,27 @@
 from discord.ext import commands
-from bot_commands.bot_wrapper import BotWrapper
-import bot_commands.helpers as helpers
+
+from application.bot import Bot
+from application.commands import AppCommand
+from application.context import AppContext
 
 
-class ResumeCommand(commands.Cog):
-    def __init__(self, bot: BotWrapper):
+class ResumeCommand(AppCommand):
+    def __init__(self, bot: Bot):
         self.bot = bot
 
     @commands.hybrid_command()
-    async def resume(self, ctx: commands.Context):
-        """Возобновляет воспроизведение трека"""
+    async def resume(self, ctx: AppContext):
+        """
+        Continues paused song
+        """
 
-        if not helpers.bot_is_connected(ctx):
+        if not ctx.is_client_connected():
             await ctx.send(f'Бот не подключен')
             return
-        if not helpers.is_same_channel(ctx):
+        if not ctx.is_same_channel():
             await ctx.send(f'Невозможно пропустить трек не находясь в канале: {ctx.voice_client.channel.name}')
             return
-        if helpers.bot_is_playing(ctx):
+        if ctx.is_client_playing():
             ctx.voice_client.resume()
             await ctx.send(f'Возобновил воспроизведение')
             return
