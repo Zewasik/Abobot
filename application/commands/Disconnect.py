@@ -1,24 +1,26 @@
 from discord.ext import commands
-from bot_commands.bot_wrapper import BotWrapper
-import bot_commands.helpers as helpers
+
+from application.bot import Bot
+from application.commands import AppCommand
+from application.context import AppContext
 
 
-class DisconnectCommand(commands.Cog):
-    def __init__(self, bot: BotWrapper):
+class DisconnectCommand(AppCommand):
+    def __init__(self, bot: Bot):
         self.bot = bot
 
     @commands.hybrid_command()
-    async def disconnect(self, ctx: commands.Context):
-        """Отключает бота от канала"""
+    async def disconnect(self, ctx: AppContext):
+        """Disconnects bot from the channel"""
 
-        if not helpers.bot_is_connected(ctx):
+        if not ctx.is_client_connected():
             await ctx.send(f'Бот не подключен')
             return
-        if not helpers.is_same_channel(ctx):
+        if not ctx.is_same_channel():
             await ctx.send(f'Невозможно отключить бота не находясь в канале: {ctx.author.voice.channel.name}')
             return
-        if helpers.bot_is_playing(ctx):
-            self.bot.queue[ctx.author.guild.id].remove_queue()
+        if ctx.is_client_playing():
+            self.bot.queueMap[ctx.author.guild.id].clean()
             ctx.voice_client.stop()
 
         await ctx.voice_client.disconnect()

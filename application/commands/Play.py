@@ -1,27 +1,33 @@
 import asyncio
 import random
+from datetime import timedelta
+
 import discord
 from discord.ext import commands
-from bot_commands.bot_wrapper import BotWrapper
-import bot_commands.helpers as helpers
-from bot_commands.music_queue import MusicQueue
 
 import config
+from application.bot import Bot
+from application.context import AppContext
+from application.model import MusicQueue
+from application.commands import AppCommand
 
 
-class PlayCommand(commands.Cog):
-    def __init__(self, bot: BotWrapper):
+class PlayCommand(AppCommand):
+    def __init__(self, bot: Bot):
         self.bot = bot
 
     @commands.hybrid_command()
-    async def play(self, ctx: commands.Context, link_or_query: str):
-        """Подключает бота к каналу и добавляет в очередь новую песню по запросу"""
+    async def play(self, ctx: AppContext, link_or_query: str):
+        """
+        Establishes bot connection to the voice channel where context
+        author is located and starts playing requested song
+        """
 
-        if not helpers.author_is_connected(ctx):
+        if not ctx.is_author_connected():
             await ctx.send(f'Необходимо находиться на канале для использования бота')
             return
-        if helpers.bot_is_connected(ctx):
-            if not helpers.is_same_channel(ctx):
+        if ctx.is_client_connected():
+            if not ctx.is_same_channel():
                 await ctx.send(f'Бот уже занят:( Он находится в канале **{ctx.voice_client.channel.name}**')
                 return
             vc = ctx.voice_client
@@ -29,12 +35,12 @@ class PlayCommand(commands.Cog):
             vc = await ctx.author.voice.channel.connect()
 
         id = ctx.author.guild.id
-        if id not in self.bot.queue:
-            self.bot.queue[id] = MusicQueue()
+        if id not in self.bot.queueMap:
+            self.bot.queueMap[id] = MusicQueue()
 
         msg = await ctx.send(f'Попытка добавления трека...')
 
-        video = self.bot.queue[id].add_music(link_or_query)
+        video = self.bot.queueMap[id].add_songs(link_or_query)
         if not video['ok'] or video['length'] < 1:
             await msg.edit(content=f"Не удалось добавить трек")
         if video['type'] == "playlist":
@@ -47,7 +53,7 @@ class PlayCommand(commands.Cog):
         if vc.is_playing() or vc.is_paused():
             return
 
-        for current_music in self.bot.queue[id]:
+        for current_music in self.bot.queueMap[id]:
             if not current_music or not current_music.direct_url:
                 continue
             try:
@@ -59,7 +65,7 @@ class PlayCommand(commands.Cog):
 
                 await ctx.channel.send(
                     f"Сейчас проигрывается: `{current_music.title}`"
-                    f" от **{current_music.author}** [`{current_music.get_readable_time()}`]")
+                    f" от **{current_music.author}** [`{timedelta(seconds=current_music.durationSeconds)}`]")
                 # vc.source = discord.PCMVolumeTransformer(vc.source, volume=1.0)
             except Exception as e:
                 print(f"Error: {e}")
@@ -68,10 +74,10 @@ class PlayCommand(commands.Cog):
                 await asyncio.sleep(1)
 
     @commands.hybrid_command()
-    async def gachi(self, ctx: commands.Context):
+    async def gachi(self, ctx: AppContext):
         """Подключает бота к каналу и добавляет в очередь просто шедевры"""
         gachi_url = 'https://www.youtube.com/playlist?list=PLPte1Gs5n0KtXhk3piLJcYK23WJgG4sea'
         await self.play(ctx, gachi_url)
 
-        if self.bot.queue[ctx.author.guild.id]:
-            random.shuffle(self.bot.queue[ctx.author.guild.id].queue)
+        if self.bot.queueMap[ctx.author.guild.id]:
+            random.shuffle(self.bot.queueMap[ctx.author.guild.id].queue)
