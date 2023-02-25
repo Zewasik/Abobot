@@ -1,6 +1,9 @@
+.idea
+venv
 *.webm
 *.m4a
 test*
 discord_bot
 .env
 __pycache__
+TODO.md
