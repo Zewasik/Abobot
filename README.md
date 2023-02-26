@@ -5,7 +5,7 @@
 This project is a music-playing bot written in Python, mainly using the youtube-dl and yt-dlp libraries. 
 It allows you to play music from various sources, with full support currently only for YouTube. 
 To use the bot, you need to create a .env file at the root of the project to specify the bot token. 
-An example of usage is described in the .env_example file. For convenient program launching, Docker can be used with the make command. 
+List of required environment variables is provided in .env_example file. For convenient program launching, Docker can be used with the make command. 
 The following list shows the available commands that the bot supports:
 1. Play: Used to connect and start playing. It accepts a link or a set of words. If the bot is already connected, it adds new tracks to the queue.
 2. Disconnect: Used to disconnect the bot and clear the queue.
@@ -31,12 +31,14 @@ The following list shows the available commands that the bot supports:
 2. Install the dependencies using pip install -r requirements.txt
 3. Create a .env file at the root of the project and add the following lines: 
     1. BOT_TOKEN=<your_token>
-    2. JSON_CONFIG_PATH=<path_to_config>
+    2. JSON_CONFIG_PATH=./config.json
 
 ## Usage
-1. Run the bot using `python bot.py` or Makefile 
-2. Invite the bot to your Discord server using the invite link
-3. Use the available commands to play music, skip tracks, shuffle the queue, etc.
+1. Run the bot using `python bot.py` or to use docker:
+    1. `make bot build` to build image
+    2. `make bot run` to run container
+3. Invite the bot to your Discord server using the invite link
+4. Use the available commands to play music, skip tracks, shuffle the queue, etc.
 
 ## Contributing
 
