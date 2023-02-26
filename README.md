@@ -35,10 +35,10 @@ The following list shows the available commands that the bot supports:
 
 ## Usage
 1. Run the bot using `python bot.py` or to use docker:
-    1. `make bot build` to build image
-    2. `make bot run` to run container
-3. Invite the bot to your Discord server using the invite link
-4. Use the available commands to play music, skip tracks, shuffle the queue, etc.
+    1.1. `make bot build` to build image
+    1.2. `make bot run` to run container
+2. Invite the bot to your Discord server using the invite link
+3. Use the available commands to play music, skip tracks, shuffle the queue, etc.
 
 ## Contributing
 
