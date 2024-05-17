@@ -26,7 +26,7 @@ class ListCommand(AppCommand):
         if not ctx.is_same_channel():
             await ctx.send(f'Невозможно взаимодействовать с ботом не находясь в канале: {ctx.author.voice.channel.name}')
             return
-        if self.bot.queue_is_empty(ctx.author.guild.id):
+        if self.bot.queue_is_empty(ctx):
             await ctx.send(f'Очередь пуста')
             return
 

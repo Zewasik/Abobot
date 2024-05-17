@@ -22,7 +22,7 @@ class ShuffleCommand(AppCommand):
             await ctx.send(f'Невозможно взаимодействовать с ботом не находясь в канале: '
                            f'{ctx.author.voice.channel.name}')
             return
-        if not self.bot.queue_is_empty(ctx.author.guild.id):
+        if not self.bot.queue_is_empty(ctx):
             self.bot.queueMap[ctx.author.guild.id].shuffle()
             await ctx.send(f'Очередь перемешана')
             return
